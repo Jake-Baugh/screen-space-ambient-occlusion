@@ -1,0 +1,116 @@
+cbuffer SSAOBuffer : register(b10)
+{
+	float farClip;
+	float nearClip;
+	float kernal_size;
+	float width;
+	float height;
+	float2 noiseScale;
+	float3 frustumCorner;
+	float blurSize;
+	float3 sampleKernal[16];
+
+};
+
+cbuffer SSAOBuffer2 : register(b11)
+{
+	float rad;
+	float totStrength;
+	float strength;
+	float offset;
+	float falloff;
+};
+
+cbuffer PerFrame : register(b0)
+{
+	matrix view;
+	matrix proj;
+	matrix world;
+	matrix worldView;
+	matrix worldViewProj;
+	matrix invTransWV;
+	matrix othro;
+};
+
+struct PixelIn
+{
+	float4 pos			: SV_POSITION;
+	float2 uv			: TEXCOORD0;
+	float3 view_ray		: TEXCOORD1;
+};
+
+SamplerState samp : register(s0);
+Texture2D normalDepth : register(t9);
+Texture2D randomNoise: register(t8);
+Texture2D samplekernal : register(t7);
+
+float4 main(PixelIn pin) : SV_TARGET
+{ 
+	float invSamples = 1.f/kernal_size;
+	float3 noise_samp = normalize((randomNoise.Sample(samp, pin.uv * offset).xyz * 2.f) - float3(1.f, 1.f, 1.f));
+	
+	//Grab depth of pixel and its normal
+	float depth = normalDepth.Sample(samp, pin.uv).a;
+	float3 normal = normalDepth.Sample(samp, pin.uv).xyz;
+	//Current pixels position in screenspace
+	float3 pos = float3(pin.uv, depth);
+	
+
+	float occ = 0.0;
+	float sampleRadius = rad / depth;
+	float depthDifference;
+	float3 ray, samplePoint, occNorm;
+	for(int i = 0; i < (int)kernal_size; ++i) {
+		//rotates sample kernal and scales sample sample vector
+		ray = sampleRadius*reflect(sampleKernal[i], noise_samp);
+
+		//get the sample point in screen space
+		samplePoint = pos + sign(dot(ray, normal))*ray;
+
+		//sample the depth of the sample point
+		float4 samplePixel = normalDepth.Sample(samp, samplePoint.xy);
+
+		depthDifference = depth - samplePixel.a;
+		
+		//calculate occlusion
+		occ += step(falloff, depthDifference) 
+			* (1.f - dot(samplePixel.xyz, normal)) 
+			* (1.f - smoothstep(falloff,strength,depthDifference));
+
+	}
+	return (float4)(1.f - (totStrength*occ) / kernal_size);
+
+/*
+	float sampleRadius = 5.f;
+	bool rotate_kernal = false;
+
+	float3 origin = pin.view_ray * normalDepth.Sample(samp, pin.tex).a;
+	float3 normal = normalDepth.Sample(samp, pin.tex).xyz * 2.f - 1.f;
+	normal = normalize(normal);
+
+	float3 rvec = randomNoise.Sample(samp, pin.tex * noiseScale).xyz * 2.f - 1.f;
+	float3 tangent = normalize(rvec - normal * dot(rvec, normal));
+	float3 bitangent = cross(normal, tangent);
+	float3x3 rot = float3x3(tangent, bitangent, normal);
+
+	float occlusion = 0.f;
+	for(int i = 0; i < kernal_size; ++i) {
+		float3 sample = normalize(sampleKernal[i]);
+		if(rotate_kernal) {
+			sample = mul(sample, rot);
+		} 
+		sample = sample * sampleRadius + origin;
+
+		float4 offset = float4(sample, 1.f);
+		offset = mul(offset, proj);
+		offset.xy /= offset.w;
+		offset.xy = offset.xy * 0.5f + 0.5f;
+
+		float sample_depth = normalDepth.Sample(samp, offset.xy).a;
+
+		float range_check = abs(origin.z - sample_depth) < sampleRadius ? 1.0 : 0.0;
+		occlusion += (sample_depth <= sample.z ? 1.0 : 0.0) * range_check;
+	}
+	occlusion = 1.f - (occlusion / kernal_size);
+	return (float4)occlusion;*/
+}

@@ -1,0 +1,57 @@
+cbuffer SSAOBuffer : register(b10)
+{
+	float farClip;
+	float nearClip;
+	float kernal_size;
+	float width;
+	float height;
+	float2 noiseScale;
+	float3 frustumCorner;
+	float3 sampleKernal[16];
+};
+
+cbuffer SSAOBuffer2 : register(b11)
+{
+	float rad;
+	float totStrength;
+	float strength;
+	float offset;
+	float falloff;
+	float blurSize;
+};
+
+cbuffer PerFrame : register(b0)
+{
+	matrix view;
+	matrix proj;
+	matrix world;
+	matrix worldView;
+	matrix worldViewProj;
+	matrix invTransWV;
+	matrix othro;
+};
+
+struct PixelIn
+{
+	float4 pos			: SV_POSITION;
+	float2 uv			: TEXCOORD0;
+	float3 view_ray		: TEXCOORD1;
+};
+
+SamplerState samp : register(s0);
+Texture2D ssaoMap : register(t9);
+
+
+float4 main(PixelIn pin) : SV_TARGET
+{ 
+	int blur_size = blurSize;
+	float4 final = (float4)0.f;
+	float2 tex_size = float2(width, height);
+	for(int i = 0; i < blur_size; ++i) {
+		for(int j = 0; j < blur_size; ++j) {
+			float2 offset = float2(float(j) * 1.f/tex_size.x, float(i) * 1.f/tex_size.y);
+			final += ssaoMap.Sample(samp, pin.uv + offset);
+		}
+	}
+	return (float4)(final * 1.f/float(blur_size*blur_size)).r;
+}

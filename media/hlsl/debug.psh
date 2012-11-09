@@ -1,0 +1,66 @@
+cbuffer PerFrame : register(b0)
+{
+	matrix view;
+	matrix proj;
+	matrix world;
+	matrix worldView;
+	matrix worldViewProj;
+	matrix invTransWV;
+	matrix ortho;
+	matrix toTex;
+	float3 viewPos;
+	float occOn;
+};
+
+
+
+cbuffer SSAOBuffer : register(b10)
+{
+	float farClip;
+	float nearClip;
+	float kernal_size;
+	float width;
+	float height;
+	float2 noiseScale;
+	float3 frustumCorner;
+	float3 sampleKernal[16];
+
+};
+
+struct PixelIn
+{
+	float4 pos			: SV_POSITION;
+	float2 uv			: TEXCOORD;
+	float3 normal		: NORMAL;
+};
+
+Texture2D	normalMap : register(t22);
+Texture2D	ssaoMap : register(t21);
+Texture2D	blurredssaoMap : register(t20);
+SamplerState samp : register(s0);
+
+float4 main(PixelIn pin) : SV_TARGET
+{ 
+	if(pin.uv.x > 0.f && pin.uv.x <= 0.5f)
+	{
+		if(pin.uv.y > 0.f && pin.uv.y <= 0.5f) {
+			float2 uv = pin.uv; uv.y = 1 - uv.y;
+			return normalMap.Sample(samp, 2*uv);
+		}
+		else {
+			return (float4)ssaoMap.Sample(samp, (pin.uv - float2(0, 0.5)) * 2).r;
+		}
+		
+	}
+	else if(pin.uv.x > 0.5f && pin.uv.x <= 1.0f)
+	{
+		if(pin.uv.y > 0.f && pin.uv.y <= 0.5f) {
+			return (float4)blurredssaoMap.Sample(samp, (pin.uv - float2(0, 0.5)) * 2).r;
+		}
+		else {
+			float2 uv = pin.uv; uv.y = 1 - uv.y;
+			return  (float4)normalMap.Sample(samp, 2*uv).a;
+		}
+	}
+	return (float4)0.f;
+}

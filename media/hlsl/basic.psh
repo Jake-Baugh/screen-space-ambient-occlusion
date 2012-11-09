@@ -1,0 +1,68 @@
+cbuffer PerFrame : register(b0)
+{
+	matrix view;
+	matrix proj;
+	matrix world;
+	matrix worldView;
+	matrix worldViewProj;
+	matrix invTransWV;
+	matrix ortho;
+	matrix toTex;
+	float3 viewPos;
+	float occOn;
+};
+
+struct PixelIn
+{
+	float4 pos			: SV_POSITION;
+	float2 tex			: TEXCOORD2;
+	float4 ssaotex		: TEXCOORD;
+	float3 normal		: NORMAL;
+	float3 viewDir		: TEXCOORD1;
+};
+
+Texture2D	ssao : register(t5);
+SamplerState samp : register(s0);
+
+float4 main(PixelIn input) : SV_TARGET
+{ 
+	input.ssaotex /= input.ssaotex.w;
+
+	float4 ambientColor		= float4(0.7, 0.7, 0.7, 1.0);
+    float4 diffuseColor		= float4(0.7, 0.7, 0.7, 1.0);
+    float3 lightDirection	= normalize(float3(-1, 0, 1));
+	float3 lightDir			= -lightDirection;
+	
+    float	specularPower = 20;
+    float4	specularColor = (float4).25f;
+
+
+	float3 V = input.viewDir;
+	float3 N = input.normal;
+	float3 L = lightDir;
+	float3 H = normalize(2*dot(L, N)*N-L);
+
+	float access		= ssao.Sample(samp, input.ssaotex).r;
+	if(occOn) access	= 1.f;
+	float diffuseCoeff	= 0.75*saturate(dot(N, L));
+	float specularCoeff = 1.0*pow(saturate(dot(N, H)), specularPower);
+	float ambCoeff		= 0.75;
+
+	float4 color = access * ambCoeff * ambientColor + diffuseCoeff*diffuseColor + specularCoeff*specularColor;
+ 
+ /*
+	float intensity = dot(N, L);
+	if (intensity > 0.95)
+        color = float4(1.0,1,1,1.0) * color;
+    else if (intensity > 0.5)
+        color = float4(0.7,0.7,0.7,1.0) * color;
+    else if (intensity > 0.05)
+        color = float4(0.35,0.35,0.35,1.0) * color;
+    else
+        color = float4(0.1,0.1,0.1,1.0) * color;
+ 
+    return color;
+	*/
+	
+	return color;
+}

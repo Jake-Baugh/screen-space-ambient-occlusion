@@ -1,10 +1,7 @@
-Presentation\ Materials/
 ipch/
-media/
 *.filters
 *.users
 *.user
-*.lib
 *.suo
 *.vcxproj
 *.sdf
