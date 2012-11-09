@@ -1,0 +1,1 @@
+Convert obj to binary blob in custom format.

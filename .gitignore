@@ -1,0 +1,13 @@
+Presentation\ Materials/
+ipch/
+media/
+*.filters
+*.users
+*.user
+*.dll
+*.lib
+*.suo
+*.vcxproj
+*.sdf
+*.sln
+*.opensdf

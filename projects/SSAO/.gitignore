@@ -1,0 +1,13 @@
+Debug/
+Release/
+ipch/
+media/
+*.filters
+*.users
+*.user
+*.dll
+*.lib
+*.suo
+*.vcxproj
+*.sdf
+*.sln
